@@ -25,9 +25,11 @@ I have also observed `<step>` elements containing spots to configure credentials
 - LDAP
 - SMTP
 
-Finally, the `<slaveservers>` elements contain connection information for other Pentaho Data Clients servers.
+Finally, `<slaveservers>` elements contain connection information for other Pentaho Data Clients servers.
 
-Pentaho Data Client instances with default credentials may allow the you the opportunity to download a large number of KTR files, usually embedded in a ZIP archive. You might also get lucky and find them somewhere else!
+An attacker who has valid credentials on an instance of Pentaho Data Client may be able to download a large number of KTR files, usually embedded in a ZIP archive, through the 'Browse Files' feature of the webapp. You might also get lucky and find them somewhere else!
+
+There are [some](https://github.com/Riktastic/Pentaho-Kettle-Password-Decrypt) [nice](https://zineausa.com/blog/2020/07/pen-test-guide-to-pentaho-business-analytics/) [resources](https://diethardsteiner.github.io/pdi/2017/03/03/PDI-Password-Encryption.html) that I found, discussing how to recover passwords using KTR files or other Pentaho/Kettle resources. They work! I used them initially when recovering these passwords, but frankly they're a little cumbersome and/or require relatively large installs to run. I wanted to make something that was smaller and much easier to use!
 
 `ktr_parse.py` facilitates parsing 'Encrypted' passwords and other relevant data from KTR files. The tool can be directed at individual KTR files, individual ZIP files that contain KTR files, or a directory that contains either. Passwords can be decrypted using the default key set by Pentaho or using other keys that may be recovered using `key_recovery.py`.
 
@@ -38,11 +40,11 @@ Admins of Pentaho servers that use KTR files or other Kettle resources may opt t
     plaintext xor seed == ciphertext
     plaintext xor ciphertext == seed 
 
-An attacker who has valid credentials on an instance of Pentaho Data Client with default credentials may be able to recover a plaintext/ciphertext pair by through various methods including:
+An attacker who has valid credentials on an instance of Pentaho Data Client may be able to recover a plaintext/ciphertext pair by through various methods including:
 
 1. Create or obtain a plaintext password for a service with an 'Encrypted' password that you cannot recover using the default key.
     - By creating a new database connection or other connection string, the attacker would be able to set a known plaintext.
-    - By temporarily modifying the database connection from within the Pentaho Data Client webapp to reference a stand-in service which is owned by the attacker and clicking the 'test' button, an attacker may be able to coerce the into sending an authentication request to them. This may take the form of a plaintext password.  
+    - By temporarily modifying the database connection from within the Pentaho Data Client webapp to reference a stand-in service which is owned by the attacker and clicking the 'test' button, an attacker may be able to coerce the into sending an authentication request to them. This may take the form of a plaintext password. 
 2. By downloading the KTR file that corresponds with the connection used in step 1, the attacker would be able to recover the 'Encrypted' password string that was created using the plaintext password and the currently unknown 'seed'.
 3. XORing these strings together, the attacker could recover the 'seed' and use it to to recover the other 'Encrypted' passwords that were created using it.
 
@@ -110,4 +112,11 @@ Recovered seed: 933910847463829827159347601486730416058
 Recovers the seed value used in the encryption process by XORing the plaintext and ciphertext.
 
 # Thanks
-Thanks to [Haicen](https://blog.haicen.me/) for pointing out how simple it would be to recover the 'seed' for anyone who already knew a valid plaintext/ciphertext combo and saving us all a lot of time in the process. 
+Thanks to [Haicen](https://blog.haicen.me/) for pointing out how simple it would be to recover the 'seed' for anyone who already knew a valid plaintext/ciphertext combo and saving us all a lot of time as a result. 
+
+# References
+1. Pentaho Kettle source code that includes the `decryptPasswordInternal` function, used for decrypting the 'Encrypted' values and the default `envSeed` value: [Pentaho Kettle: KettleTwoWayPasswordEncoder.java](https://github.com/pentaho/pentaho-kettle/blob/master/core/src/main/java/org/pentaho/di/core/encryption/KettleTwoWayPasswordEncoder.java#L123). 
+2. Pentaho's official documentation for class: [`KettleTwoWayPasswordEncoder`](https://javadoc.pentaho.com/kettle800/kettle-core-8.0.0.0-6-javadoc/org/pentaho/di/core/encryption/KettleTwoWayPasswordEncoder.html). 
+3. Riktastic's KTF that executes the (now deprecated) `decryptPassword` function: [DecryptPassword.ktr](https://github.com/Riktastic/Pentaho-Kettle-Password-Decrypt/blob/master/Decrypt_password.ktr)
+4. A nice writeup by zinea llc (aka [serialenabler(???)](https://github.com/serialenabler)) on the process of preparing and using `DecryptPassword.ktr`: [Pentest Guide to Pentaho Business Analytics](https://zineausa.com/blog/2020/07/pen-test-guide-to-pentaho-business-analytics/)
+5. Another reference to some of the encrypt/decrypt functions and how they are used in existing one-off utilities within the larger Pentaho Data Integration toolkit: [PDI Password Encryption](https://diethardsteiner.github.io/pdi/2017/03/03/PDI-Password-Encryption.html)
